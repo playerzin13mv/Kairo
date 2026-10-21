@@ -9,7 +9,7 @@ android {
         applicationId = "com.playerzin.kairo"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
+        versionCode = 3
         versionName = "0.2"
         ndk { abiFilters += "arm64-v8a" }
     }
@@ -29,6 +29,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    androidResources { noCompress += "gguf" }
 }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))

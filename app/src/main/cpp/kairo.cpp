@@ -4,6 +4,7 @@
 #include <atomic>
 #include <algorithm>
 #include "llama.h"
+void kairo_warmup(llama_model*);
 
 static llama_model* g_model = nullptr;
 static std::atomic<bool> g_stop{false};
@@ -29,6 +30,7 @@ Java_com_playerzin_kairo_Native_carregar(JNIEnv* env, jobject, jstring path) {
     llama_model_params mp = llama_model_default_params();
     g_model = llama_model_load_from_file(p, mp);
     env->ReleaseStringUTFChars(path, p);
+    if (g_model) kairo_warmup(g_model);
     return g_model != nullptr;
 }
 
@@ -96,7 +98,7 @@ Java_com_playerzin_kairo_Native_gerar(JNIEnv* env, jobject, jobjectArray roles, 
 
     std::string pending;
     int gen = 0;
-    while (ok && !g_stop && gen < 1024 && (nt + gen) < n_ctx - 1) {
+    while (ok && !g_stop && gen < 768 && (nt + gen) < n_ctx - 1) {
         llama_token tok = llama_sampler_sample(smpl, ctx, -1);
         if (llama_vocab_is_eog(vocab, tok)) break;
         char piece[256];

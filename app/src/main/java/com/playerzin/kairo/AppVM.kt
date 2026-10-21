@@ -8,11 +8,12 @@ import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
 const val MODELO_URL = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
-const val SISTEMA = "Você é a Kairo, uma IA simpática que roda direto no celular do usuário. Responda sempre em português do Brasil, de forma clara e objetiva."
+const val SISTEMA = "Você é a Kairo, uma IA simpática que roda direto no celular do usuário. Responda sempre em português do Brasil. Seja curta e direta, a menos que peçam detalhes."
 
 class Msg(val role: String, texto: String) { var text by mutableStateOf(texto) }
 class Conversa(val id: String, titulo: String) {
@@ -22,7 +23,7 @@ class Conversa(val id: String, titulo: String) {
 
 class AppVM(private val app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("kairo", 0)
-    private val arquivoModelo = File(app.getExternalFilesDir(null) ?: app.filesDir, "model.gguf")
+    private val arquivoModelo = File(app.filesDir, "model.gguf")
 
     var nome by mutableStateOf<String?>(prefs.getString("nome", null))
     val conversas = mutableStateListOf<Conversa>()
@@ -30,13 +31,14 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
     var modeloPronto by mutableStateOf(false)
     var carregandoModelo by mutableStateOf(false)
     var progresso by mutableStateOf(-1f)
+    var status by mutableStateOf("")
     var gerando by mutableStateOf(false)
     var erro by mutableStateOf("")
 
     init {
         carregarConversas()
         novaConversa()
-        carregarModelo()
+        prepararModelo()
     }
 
     fun entrar(n: String) { nome = n; prefs.edit().putString("nome", n).apply() }
@@ -85,6 +87,51 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun temAsset(): Boolean = try {
+        app.assets.list("")?.contains("model.gguf") == true
+    } catch (e: Exception) { false }
+
+    fun prepararModelo() {
+        if (arquivoModelo.exists()) { carregarModelo(); return }
+        val antigo = File(app.getExternalFilesDir(null) ?: app.filesDir, "model.gguf")
+        val doAsset = temAsset()
+        if (!antigo.exists() && !doAsset) return
+        status = if (antigo.exists()) "Movendo o cérebro" else "Preparando o cérebro (só na 1ª vez)"
+        progresso = 0f
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val tmp = File(arquivoModelo.path + ".part")
+                val ent: java.io.InputStream
+                val total: Long
+                if (antigo.exists()) {
+                    ent = antigo.inputStream()
+                    total = antigo.length()
+                } else {
+                    total = try { app.assets.openFd("model.gguf").use { it.length } } catch (e: Exception) { -1L }
+                    ent = app.assets.open("model.gguf")
+                }
+                ent.use { i ->
+                    tmp.outputStream().use { o ->
+                        val b = ByteArray(1 shl 20)
+                        var d = 0L
+                        while (true) {
+                            val r = i.read(b)
+                            if (r < 0) break
+                            o.write(b, 0, r)
+                            d += r
+                            if (total > 0) progresso = d.toFloat() / total
+                        }
+                    }
+                }
+                if (tmp.renameTo(arquivoModelo) && antigo.exists()) antigo.delete()
+            } catch (e: Exception) {
+                erro = "Falha ao preparar: ${e.message}"
+            }
+            progresso = -1f
+            carregarModelo()
+        }
+    }
+
     fun carregarModelo() {
         if (!arquivoModelo.exists() || carregandoModelo) return
         carregandoModelo = true
@@ -99,30 +146,40 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
     fun baixarModelo() {
         if (progresso >= 0f) return
         erro = ""
+        status = "Baixando o cérebro"
         progresso = 0f
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val tmp = File(arquivoModelo.path + ".part")
+                val ja = if (tmp.exists()) tmp.length() else 0L
                 val c = URL(MODELO_URL).openConnection() as HttpURLConnection
                 c.connectTimeout = 15000
                 c.readTimeout = 30000
-                val total = c.contentLengthLong
-                c.inputStream.use { i ->
-                    tmp.outputStream().use { o ->
-                        val b = ByteArray(65536)
-                        var d = 0L
-                        while (true) {
-                            val r = i.read(b)
-                            if (r < 0) break
-                            o.write(b, 0, r)
-                            d += r
-                            if (total > 0) progresso = d.toFloat() / total
+                if (ja > 0) c.setRequestProperty("Range", "bytes=$ja-")
+                val code = c.responseCode
+                if (code == 416) {
+                    tmp.renameTo(arquivoModelo)
+                } else {
+                    val append = code == 206
+                    val total = if (append) ja + c.contentLengthLong else c.contentLengthLong
+                    var d = if (append) ja else 0L
+                    c.inputStream.use { i ->
+                        FileOutputStream(tmp, append).use { o ->
+                            val b = ByteArray(1 shl 18)
+                            while (true) {
+                                val r = i.read(b)
+                                if (r < 0) break
+                                o.write(b, 0, r)
+                                d += r
+                                if (total > 0) progresso = d.toFloat() / total
+                            }
                         }
                     }
+                    if (total <= 0 || d >= total) tmp.renameTo(arquivoModelo)
+                    else erro = "Download incompleto. Toque em baixar de novo para continuar."
                 }
-                tmp.renameTo(arquivoModelo)
             } catch (e: Exception) {
-                erro = "Falha no download: ${e.message}"
+                erro = "Falha no download (toque de novo para continuar): ${e.message}"
             }
             progresso = -1f
             carregarModelo()

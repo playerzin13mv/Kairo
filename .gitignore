@@ -2,3 +2,4 @@
 /app/build/
 .gradle/
 *.apk
+/app/src/main/assets/model.gguf
