@@ -246,3 +246,88 @@ fun Chat(vm: AppVM, abrirMenu: () -> Unit) {
             if (msgs.isNullOrEmpty()) Hero(vm)
             else LazyColumn(state = lista, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(msgs) { m -> Bolha(m, vm.gerando && m === msgs.l
+                items(msgs) { m -> Bolha(m, vm.gerando && m === msgs.last()) }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.Bottom) {
+            OutlinedTextField(
+                value = texto, onValueChange = { texto = it }, modifier = Modifier.weight(1f),
+                placeholder = { Text("Pergunte algo à Kairo…", color = Dim) },
+                shape = RoundedCornerShape(24.dp), maxLines = 5,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint, unfocusedBorderColor = Surf,
+                    focusedContainerColor = Surf, unfocusedContainerColor = Surf,
+                    focusedTextColor = Txt, unfocusedTextColor = Txt, cursorColor = Mint
+                )
+            )
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier.size(52.dp).clip(CircleShape).background(Grad).clickable {
+                    if (vm.gerando) vm.parar()
+                    else if (texto.isNotBlank()) { vm.enviar(texto.trim()); texto = "" }
+                },
+                contentAlignment = Alignment.Center
+            ) { Text(if (vm.gerando) "■" else "➤", color = OnAccent, fontSize = 20.sp) }
+        }
+    }
+}
+
+@Composable
+fun Hero(vm: AppVM) {
+    val sd = remember(vm.atualId) { saudacao(vm.nome ?: "") }
+    val sugestoes = remember(vm.atualId) { SUGESTOES.shuffled().take(4) }
+    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("✦", style = gradStyle(56.sp))
+        Text(sd.first, style = gradStyle(32.sp), textAlign = TextAlign.Center)
+        Text(sd.second, color = Dim, fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
+        sugestoes.forEach { s ->
+            Box(
+                Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(18.dp)).background(Surf)
+                    .clickable { vm.enviar(s) }.padding(horizontal = 18.dp, vertical = 12.dp)
+            ) { Text(s, color = Txt, fontSize = 15.sp) }
+        }
+    }
+}
+
+@Composable
+fun Bolha(m: Msg, gerandoEsta: Boolean) {
+    val user = m.role == "user"
+    val clip = LocalClipboardManager.current
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
+        Box(
+            Modifier.widthIn(max = 330.dp)
+                .clip(RoundedCornerShape(18.dp, 18.dp, if (user) 18.dp else 4.dp, if (user) 4.dp else 18.dp))
+                .then(if (user) Modifier.background(Grad) else Modifier.background(Surf))
+                .padding(14.dp, 10.dp)
+        ) {
+            if (m.text.isEmpty()) Text("Pensando…", color = Dim, fontSize = 16.sp)
+            else SelectionContainer {
+                Text(m.text, color = if (user) OnAccent else Txt, fontSize = 17.sp, lineHeight = 24.sp)
+            }
+        }
+        if (!user && m.text.isNotEmpty() && !gerandoEsta) {
+            Text(
+                "Copiar", color = Dim, fontSize = 13.sp,
+                modifier = Modifier.clickable { clip.setText(AnnotatedString(m.text)) }.padding(8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ModeloCard(vm: AppVM) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(16.dp)).background(Surf).padding(16.dp)) {
+        if (vm.progresso >= 0f) {
+            Text("${vm.status}… ${(vm.progresso * 100).toInt()}%", color = Txt)
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(progress = { vm.progresso }, modifier = Modifier.fillMaxWidth(), color = Mint, trackColor = Bg)
+        } else if (vm.carregandoModelo) {
+            Text("Acordando a Kairo… (na primeira vez demora um pouquinho)", color = Txt)
+        } else {
+            Text("Pra conversar eu preciso do meu cérebro (Qwen2.5 1.5B, cerca de 1,1 GB). Use Wi-Fi!", color = Txt, fontSize = 15.sp)
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = { vm.baixarModelo() }, shape = RoundedCornerShape(14.dp)) { Text("Baixar / continuar") }
+            if (vm.erro.isNotEmpty()) Text(vm.erro, color = Err, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
