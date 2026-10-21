@@ -245,7 +245,6 @@ fun Chat(vm: AppVM, abrirMenu: () -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (msgs.isNullOrEmpty()) Hero(vm)
             else LazyColumn(state = lista, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(msgs) { m -> Bolha(m, vm.gerando && m === msgs.l
                 items(msgs) { m -> Bolha(m, vm.gerando && m === msgs.last()) }
             }
         }
