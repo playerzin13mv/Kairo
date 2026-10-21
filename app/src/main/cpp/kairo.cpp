@@ -118,4 +118,3 @@ Java_com_playerzin_kairo_Native_gerar(JNIEnv* env, jobject, jobjectArray roles, 
     llama_free(ctx);
     return env->NewStringUTF(ok ? "" : "[erro ao processar]");
 }
-E
