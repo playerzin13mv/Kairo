@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(kairo)
+add_library(kairo SHARED kairo.cpp)
+find_library(log-lib log)
+target_link_libraries(kairo ${log-lib})
