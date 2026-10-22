@@ -13,7 +13,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 const val MODELO_URL = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
-const val SISTEMA = "Você é a Kairo, uma IA simpática que roda direto no celular do usuário. Responda sempre em português do Brasil. Seja curta e direta, a menos que peçam detalhes."
+const val SISTEMA = "Você é a Kairo, uma assistente de IA que roda direto no celular. Responda sempre em português do Brasil, respondendo exatamente ao que a pessoa escreveu. Se ela fizer uma pergunta, responda de verdade. Nunca repita sempre a mesma saudação."
 
 class Msg(val role: String, texto: String) { var text by mutableStateOf(texto) }
 class Conversa(val id: String, titulo: String) {
@@ -36,6 +36,7 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
     var erro by mutableStateOf("")
     var precisaAcordar by mutableStateOf(false)
     var diag by mutableStateOf("")
+    var apagarId by mutableStateOf<String?>(null)
 
     init {
         diag = Diag.relatorio(app)

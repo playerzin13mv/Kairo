@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.*
@@ -68,7 +70,7 @@ fun KairoTheme(content: @Composable () -> Unit) {
     }
 }
 
-fun saudacao(nome: String): Pair<String, String> {
+fun saudacaoAntiga(nome: String): Pair<String, String> {
     val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val par = when (h) {
         in 5..11 -> listOf(
@@ -99,7 +101,7 @@ fun saudacao(nome: String): Pair<String, String> {
     return par.first.random() to par.second.random()
 }
 
-val SUGESTOES = listOf(
+val SUGESTOES_ANTIGAS = listOf(
     "Me conta uma curiosidade", "Ideias de vídeo pro YouTube", "Escreve uma piada curta",
     "Explica o que é um port de jogo", "Me dá um nome pra um canal", "Como organizo meu dia?",
     "Resume o que é uma IA", "Inventa uma história curta"
@@ -139,7 +141,7 @@ fun LoginScreen(vm: AppVM) {
     ) {
         Text("✦", style = gradStyle(72.sp))
         Text("Kairo", style = gradStyle(44.sp))
-        Text("Sua IA, direto no seu celular", color = Dim)
+        Text("A IA que mora no seu bolso", color = Dim)
         Spacer(Modifier.height(40.dp))
         Button(
             onClick = {
@@ -212,12 +214,12 @@ fun Principal(vm: AppVM) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(c.titulo, color = Txt, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                Text("🗑", modifier = Modifier.clickable { vm.apagar(c.id) }.padding(start = 10.dp))
+Box(Modifier.clip(CircleShape).clickable { vm.apagarId = c.id }.padding(8.dp)) { IconeLixeira(Dim) }
                             }
                         }
                     }
                     Text("Olá, ${vm.nome}", color = Txt, fontWeight = FontWeight.Bold)
-                    Text("Versão 0.4 · cérebro 0.5B", color = Dim, fontSize = 12.sp)
+                    Text("Kairo 0.5 · a IA que mora no seu bolso", color = Dim, fontSize = 12.sp)
                     TextButton(onClick = { vm.sair() }) { Text("Sair da conta", color = Dim) }
                 }
             }
@@ -243,6 +245,7 @@ fun Chat(vm: AppVM, abrirMenu: () -> Unit) {
             Text("＋", fontSize = 26.sp, color = Mint, modifier = Modifier.clip(CircleShape).clickable { vm.novaConversa() }.padding(12.dp))
         }
         if (vm.diag.isNotEmpty()) DiagCard(vm)
+        if (vm.apagarId != null) ConfirmarApagar(vm)
         if (!vm.modeloPronto) ModeloCard(vm)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (msgs.isNullOrEmpty()) Hero(vm)
@@ -349,3 +352,102 @@ fun DiagCard(vm: AppVM) {
         }
     }
 }
+
+@Composable
+fun IconeLixeira(cor: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(22.dp)) {
+        val s = size.width
+        val traco = Stroke(width = s * 0.09f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        drawLine(cor, Offset(s * 0.15f, s * 0.25f), Offset(s * 0.85f, s * 0.25f), strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+        val alca = Path().apply {
+            moveTo(s * 0.38f, s * 0.25f)
+            lineTo(s * 0.38f, s * 0.14f)
+            lineTo(s * 0.62f, s * 0.14f)
+            lineTo(s * 0.62f, s * 0.25f)
+        }
+        drawPath(alca, cor, style = traco)
+        val corpo = Path().apply {
+            moveTo(s * 0.24f, s * 0.25f)
+            lineTo(s * 0.29f, s * 0.84f)
+            lineTo(s * 0.71f, s * 0.84f)
+            lineTo(s * 0.76f, s * 0.25f)
+        }
+        drawPath(corpo, cor, style = traco)
+        drawLine(cor, Offset(s * 0.42f, s * 0.42f), Offset(s * 0.42f, s * 0.68f), strokeWidth = s * 0.08f, cap = StrokeCap.Round)
+        drawLine(cor, Offset(s * 0.58f, s * 0.42f), Offset(s * 0.58f, s * 0.68f), strokeWidth = s * 0.08f, cap = StrokeCap.Round)
+    }
+}
+
+@Composable
+fun ConfirmarApagar(vm: AppVM) {
+    val id = vm.apagarId ?: return
+    val titulo = vm.conversas.firstOrNull { it.id == id }?.titulo ?: "esta conversa"
+    AlertDialog(
+        onDismissRequest = { vm.apagarId = null },
+        containerColor = Surf,
+        titleContentColor = Txt,
+        textContentColor = Dim,
+        title = { Text("Apagar conversa?") },
+        text = { Text("\"$titulo\" será apagada para sempre.") },
+        confirmButton = { TextButton(onClick = { vm.apagar(id); vm.apagarId = null }) { Text("Apagar", color = Err) } },
+        dismissButton = { TextButton(onClick = { vm.apagarId = null }) { Text("Cancelar", color = Mint) } }
+    )
+}
+
+fun saudacao(nome: String): Pair<String, String> {
+    val agora = Calendar.getInstance()
+    val h = agora.get(Calendar.HOUR_OF_DAY)
+    val dia = agora.get(Calendar.DAY_OF_WEEK)
+    val comuns = listOf(
+        "Oi, $nome! 👋", "E aí, $nome! 😄", "Fala, $nome! ✨", "Salve, $nome! 🎮",
+        "Olá, $nome! 💬", "Que bom te ver, $nome! 💚", "Bem-vindo de volta, $nome!",
+        "Opa, olha quem chegou! 👀", "Chegou o craque, $nome! 🚀", "Tudo certo, $nome? 😎",
+        "Hora de criar, $nome! 🛠️", "Eita, $nome! Bora? 🔥", "Prontinha pra você, $nome! ⚡",
+        "Ei, $nome! Senti sua falta! 🥰", "Fala, craque! 🎮", "Tamo junto, $nome! 🤝",
+        "Chegou a estrela, $nome! 🌟", "Você de novo, $nome? Adoro! 😁", "Oi oi, $nome! 🙌"
+    )
+    val periodo = when (h) {
+        in 5..11 -> listOf(
+            "Bom dia, $nome! ☀️", "Bom dia, $nome! Café já tomado? ☕", "Acordou cedo, hein, $nome? 🌅",
+            "Manhã boa pra criar, $nome! 🌤️", "Bom dia, campeão! 🏆"
+        )
+        in 12..17 -> listOf(
+            "Boa tarde, $nome! 🌤️", "Boa tarde, $nome! Já almoçou? 🍽️",
+            "Tarde produtiva, $nome? 💪", "Boa tarde, craque! 🎮"
+        )
+        in 18..23 -> listOf(
+            "Boa noite, $nome! 🌙", "Boa noite, $nome! Como foi o dia? 🌆",
+            "Noite de criação, $nome? 🌃", "Boa noite, estrela! ✨"
+        )
+        else -> listOf(
+            "Ainda acordado, $nome? 🌙", "Olá, coruja! 🦉",
+            "Madrugada de ideias, $nome? ✨", "Dormir que é bom, nada, né, $nome? 😴"
+        )
+    }
+    val semana = when (dia) {
+        Calendar.MONDAY -> listOf("Segundou! Bora, $nome! 💪")
+        Calendar.FRIDAY -> listOf("Sextou, $nome! 🎉", "Sexta-feira, $nome! Bora criar? 🎊")
+        Calendar.SATURDAY -> listOf("Sábado de projeto, $nome? 🛠️")
+        Calendar.SUNDAY -> listOf("Domingo de descanso, $nome? 😴", "Domingão, $nome! 🍕")
+        else -> emptyList()
+    }
+    val titulo = (comuns + periodo + periodo + semana + semana).random()
+    val subs = listOf(
+        "Em que posso te ajudar?", "O que vamos criar hoje?", "Bora tirar uma ideia do papel?",
+        "Pergunte o que quiser, estou aqui!", "Tem ideia nova pro seu canal?",
+        "Quer testar uma ideia maluca?", "Vamos fazer algo incrível?", "Me conta: o que está rolando?",
+        "Posso ajudar com ideias, textos e dúvidas.", "A IA que mora no seu bolso.",
+        "Pensando rápido, direto do seu celular.", "Sem internet, sem enrolação.",
+        "Qual é o plano de hoje?", "Manda a primeira pergunta!", "Estou pronta pra conversar.",
+        "Vamos começar por onde?", "Hoje o dia pede criatividade.", "Fale comigo, sem pressa.",
+        "Que tal começar por uma curiosidade?", "Seu parceiro de ideias chegou."
+    )
+    return titulo to subs.random()
+}
+
+val SUGESTOES = listOf(
+    "Me conta uma curiosidade", "Ideias de vídeo pro YouTube", "Escreve uma piada curta",
+    "Explica o que é um port de jogo", "Me dá um nome pra um canal", "Como organizo meu dia?",
+    "Resume o que é uma IA", "Inventa uma história curta", "Me dá uma ideia de jogo simples",
+    "Como começo a aprender Kotlin?", "Escreve uma legenda pra um vídeo", "Me desafia com uma charada"
+)
