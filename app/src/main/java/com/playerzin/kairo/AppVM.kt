@@ -12,7 +12,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-const val MODELO_URL = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+const val MODELO_URL = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
 const val SISTEMA = "Você é a Kairo, uma IA simpática que roda direto no celular do usuário. Responda sempre em português do Brasil. Seja curta e direta, a menos que peçam detalhes."
 
 class Msg(val role: String, texto: String) { var text by mutableStateOf(texto) }
@@ -23,7 +23,7 @@ class Conversa(val id: String, titulo: String) {
 
 class AppVM(private val app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("kairo", 0)
-    private val arquivoModelo = File(app.filesDir, "model.gguf")
+    private val arquivoModelo = File(app.filesDir, "kairo-0.5b.gguf")
 
     var nome by mutableStateOf<String?>(prefs.getString("nome", null))
     val conversas = mutableStateListOf<Conversa>()
@@ -38,6 +38,8 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
     init {
         carregarConversas()
         novaConversa()
+        File(app.filesDir, "model.gguf").delete()
+        File(app.getExternalFilesDir(null) ?: app.filesDir, "model.gguf").delete()
         prepararModelo()
     }
 

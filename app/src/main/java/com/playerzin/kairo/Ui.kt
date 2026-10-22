@@ -323,7 +323,7 @@ fun ModeloCard(vm: AppVM) {
         } else if (vm.carregandoModelo) {
             Text("Acordando a Kairo… (na primeira vez demora um pouquinho)", color = Txt)
         } else {
-            Text("Pra conversar eu preciso do meu cérebro (Qwen2.5 1.5B, cerca de 1,1 GB). Use Wi-Fi!", color = Txt, fontSize = 15.sp)
+            Text("Pra conversar eu preciso do meu cérebro (Qwen2.5 0.5B, cerca de 400 MB). Use Wi-Fi!", color = Txt, fontSize = 15.sp)
             Spacer(Modifier.height(10.dp))
             Button(onClick = { vm.baixarModelo() }, shape = RoundedCornerShape(14.dp)) { Text("Baixar / continuar") }
             if (vm.erro.isNotEmpty()) Text(vm.erro, color = Err, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
