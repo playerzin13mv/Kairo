@@ -12,8 +12,13 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-const val MODELO_URL = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
-const val SISTEMA = "Você é a Kairo, uma assistente de IA que roda direto no celular. Responda sempre em português do Brasil, respondendo exatamente ao que a pessoa escreveu. Se ela fizer uma pergunta, responda de verdade. Nunca repita sempre a mesma saudação."
+val SISTEMA: String = "Você é a Kairo, uma assistente de IA que roda direto no celular. " +
+    "Responda sempre em português do Brasil, respondendo exatamente ao que a pessoa escreveu. " +
+    "Se ela fizer uma pergunta, responda de verdade. Nunca repita sempre a mesma saudação. " +
+    "Quando a pessoa pedir código, arquivos, json, zip ou addon, escreva cada arquivo em um bloco de código " +
+    "cuja primeira linha é três crases, a palavra arquivo, dois pontos e o caminho do arquivo, por exemplo: " +
+    "\u0060\u0060\u0060arquivo:BP/manifest.json (depois vem o conteúdo e o fim do bloco). " +
+    "Use um bloco por arquivo e explique pouco."
 
 class Msg(val role: String, texto: String) { var text by mutableStateOf(texto) }
 class Conversa(val id: String, titulo: String) {
@@ -23,9 +28,9 @@ class Conversa(val id: String, titulo: String) {
 
 class AppVM(private val app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("kairo", 0)
-    private val arquivoModelo = File(app.filesDir, "kairo-0.5b.gguf")
 
     var nome by mutableStateOf<String?>(prefs.getString("nome", null))
+    var modeloId by mutableStateOf(prefs.getString("modelo", "0.5b") ?: "0.5b")
     val conversas = mutableStateListOf<Conversa>()
     var atualId by mutableStateOf<String?>(null)
     var modeloPronto by mutableStateOf(false)
@@ -37,13 +42,15 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
     var precisaAcordar by mutableStateOf(false)
     var diag by mutableStateOf("")
     var apagarId by mutableStateOf<String?>(null)
+    var mostrarModelos by mutableStateOf(false)
+    var versaoModelos by mutableStateOf(0)
 
     init {
         diag = Diag.relatorio(app)
-        carregarConversas()
-        novaConversa()
         File(app.filesDir, "model.gguf").delete()
         File(app.getExternalFilesDir(null) ?: app.filesDir, "model.gguf").delete()
+        carregarConversas()
+        novaConversa()
         prepararModelo()
     }
 
@@ -93,30 +100,49 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun arquivoDe(id: String) = File(app.filesDir, "kairo-" + id + ".gguf")
+    private fun infoAtual() = MODELOS.firstOrNull { it.id == modeloId } ?: MODELOS[0]
+    fun modeloNome(): String = infoAtual().nome
+    fun modeloTam(): String = infoAtual().tamanho
+
+    fun baixado(id: String): Boolean {
+        val v = versaoModelos
+        return v >= 0 && arquivoDe(id).exists()
+    }
+
+    fun trocarModelo(id: String) {
+        if (gerando || progresso >= 0f || carregandoModelo || id == modeloId) return
+        modeloId = id
+        prefs.edit().putString("modelo", id).apply()
+        modeloPronto = false
+        precisaAcordar = false
+        erro = ""
+        Diag.marcar(app, false)
+        prepararModelo()
+    }
+
+    fun apagarModelo(id: String) {
+        if (id == modeloId) return
+        arquivoDe(id).delete()
+        File(arquivoDe(id).path + ".part").delete()
+        versaoModelos++
+    }
+
     private fun temAsset(): Boolean = try {
         app.assets.list("")?.contains("model.gguf") == true
     } catch (e: Exception) { false }
 
     fun prepararModelo() {
-        if (arquivoModelo.exists()) { carregarModelo(); return }
-        val antigo = File(app.getExternalFilesDir(null) ?: app.filesDir, "model.gguf")
-        val doAsset = temAsset()
-        if (!antigo.exists() && !doAsset) return
-        status = if (antigo.exists()) "Movendo o cérebro" else "Preparando o cérebro (só na 1ª vez)"
+        val arq = arquivoDe(modeloId)
+        if (arq.exists()) { carregarModelo(); return }
+        if (modeloId != "0.5b" || !temAsset()) return
+        status = "Preparando o cérebro (só na 1ª vez)"
         progresso = 0f
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val tmp = File(arquivoModelo.path + ".part")
-                val ent: java.io.InputStream
-                val total: Long
-                if (antigo.exists()) {
-                    ent = antigo.inputStream()
-                    total = antigo.length()
-                } else {
-                    total = try { app.assets.openFd("model.gguf").use { it.length } } catch (e: Exception) { -1L }
-                    ent = app.assets.open("model.gguf")
-                }
-                ent.use { i ->
+                val tmp = File(arq.path + ".part")
+                val total = try { app.assets.openFd("model.gguf").use { it.length } } catch (e: Exception) { -1L }
+                app.assets.open("model.gguf").use { i ->
                     tmp.outputStream().use { o ->
                         val b = ByteArray(1 shl 20)
                         var d = 0L
@@ -129,20 +155,30 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
-                if (tmp.renameTo(arquivoModelo) && antigo.exists()) antigo.delete()
+                tmp.renameTo(arq)
             } catch (e: Exception) {
-                erro = "Falha ao preparar: ${e.message}"
+                erro = "Falha ao preparar: " + e.message
             }
             progresso = -1f
+            versaoModelos++
             carregarModelo()
         }
     }
 
     fun carregarModelo(manual: Boolean = false) {
-        if (!arquivoModelo.exists() || carregandoModelo) return; if (!manual && Diag.marcaExiste(app)) { precisaAcordar = true; erro = "Da última vez o app fechou ao acordar a Kairo."; return }; precisaAcordar = false
+        val arq = arquivoDe(modeloId)
+        if (!arq.exists() || carregandoModelo) return
+        if (!manual && Diag.marcaExiste(app)) {
+            precisaAcordar = true
+            erro = "Da última vez o app fechou ao acordar a Kairo."
+            return
+        }
+        precisaAcordar = false
         carregandoModelo = true
         viewModelScope.launch(Dispatchers.IO) {
-            Diag.marcar(app, true); val ok = Native.carregar(arquivoModelo.absolutePath); Diag.marcar(app, false)
+            Diag.marcar(app, true)
+            val ok = Native.carregar(arq.absolutePath)
+            Diag.marcar(app, false)
             modeloPronto = ok
             carregandoModelo = false
             if (!ok) erro = "Não consegui carregar o modelo."
@@ -151,20 +187,23 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
 
     fun baixarModelo() {
         if (progresso >= 0f) return
+        val id = modeloId
+        val info = infoAtual()
+        val arq = arquivoDe(id)
         erro = ""
         status = "Baixando o cérebro"
         progresso = 0f
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val tmp = File(arquivoModelo.path + ".part")
+                val tmp = File(arq.path + ".part")
                 val ja = if (tmp.exists()) tmp.length() else 0L
-                val c = URL(MODELO_URL).openConnection() as HttpURLConnection
+                val c = URL(info.url).openConnection() as HttpURLConnection
                 c.connectTimeout = 15000
                 c.readTimeout = 30000
-                if (ja > 0) c.setRequestProperty("Range", "bytes=$ja-")
+                if (ja > 0) c.setRequestProperty("Range", "bytes=" + ja + "-")
                 val code = c.responseCode
                 if (code == 416) {
-                    tmp.renameTo(arquivoModelo)
+                    tmp.renameTo(arq)
                 } else {
                     val append = code == 206
                     val total = if (append) ja + c.contentLengthLong else c.contentLengthLong
@@ -181,14 +220,15 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
                             }
                         }
                     }
-                    if (total <= 0 || d >= total) tmp.renameTo(arquivoModelo)
+                    if (total <= 0 || d >= total) tmp.renameTo(arq)
                     else erro = "Download incompleto. Toque em baixar de novo para continuar."
                 }
             } catch (e: Exception) {
-                erro = "Falha no download (toque de novo para continuar): ${e.message}"
+                erro = "Falha no download (toque de novo para continuar): " + e.message
             }
             progresso = -1f
-            carregarModelo()
+            versaoModelos++
+            if (id == modeloId) carregarModelo()
         }
     }
 

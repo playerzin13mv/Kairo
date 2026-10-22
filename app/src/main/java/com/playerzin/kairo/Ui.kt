@@ -200,6 +200,8 @@ fun Principal(vm: AppVM) {
                         modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(16.dp)
                     ) { Text("＋  Nova conversa") }
                     Spacer(Modifier.height(14.dp))
+                    OutlinedButton(onClick = { vm.mostrarModelos = true; scope.launch { drawer.close() } }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Cérebro: ${vm.modeloNome()}", color = Mint, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    Spacer(Modifier.height(10.dp))
                     Text("Conversas", color = Dim, fontSize = 13.sp)
                     Spacer(Modifier.height(6.dp))
                     LazyColumn(Modifier.weight(1f)) {
@@ -219,7 +221,7 @@ Box(Modifier.clip(CircleShape).clickable { vm.apagarId = c.id }.padding(8.dp)) {
                         }
                     }
                     Text("Olá, ${vm.nome}", color = Txt, fontWeight = FontWeight.Bold)
-                    Text("Kairo 0.5 · a IA que mora no seu bolso", color = Dim, fontSize = 12.sp)
+                    Text("Kairo 0.6 · a IA que mora no seu bolso", color = Dim, fontSize = 12.sp)
                     TextButton(onClick = { vm.sair() }) { Text("Sair da conta", color = Dim) }
                 }
             }
@@ -246,6 +248,7 @@ fun Chat(vm: AppVM, abrirMenu: () -> Unit) {
         }
         if (vm.diag.isNotEmpty()) DiagCard(vm)
         if (vm.apagarId != null) ConfirmarApagar(vm)
+        if (vm.mostrarModelos) ModelosDialog(vm)
         if (!vm.modeloPronto) ModeloCard(vm)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (msgs.isNullOrEmpty()) Hero(vm)
@@ -310,6 +313,7 @@ fun Bolha(m: Msg, gerandoEsta: Boolean) {
             }
         }
         if (!user && m.text.isNotEmpty() && !gerandoEsta) {
+            ArquivosCard(m.text)
             Text(
                 "Copiar", color = Dim, fontSize = 13.sp,
                 modifier = Modifier.clickable { clip.setText(AnnotatedString(m.text)) }.padding(8.dp)
@@ -332,7 +336,7 @@ fun ModeloCard(vm: AppVM) {
         } else if (vm.carregandoModelo) {
             Text("Acordando a Kairo… (na primeira vez demora um pouquinho)", color = Txt)
         } else {
-            Text("Pra conversar eu preciso do meu cérebro (Qwen2.5 0.5B, cerca de 400 MB). Use Wi-Fi!", color = Txt, fontSize = 15.sp)
+Text("Pra conversar eu preciso do cérebro ${vm.modeloNome()} (${vm.modeloTam()}). Use Wi-Fi!", color = Txt, fontSize = 15.sp)
             Spacer(Modifier.height(10.dp))
             Button(onClick = { vm.baixarModelo() }, shape = RoundedCornerShape(14.dp)) { Text("Baixar / continuar") }
             if (vm.erro.isNotEmpty()) Text(vm.erro, color = Err, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))

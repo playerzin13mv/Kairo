@@ -72,7 +72,7 @@ Java_com_playerzin_kairo_Native_gerar(JNIEnv* env, jobject, jobjectArray roles, 
     std::vector<llama_token> toks(nt);
     llama_tokenize(vocab, prompt.c_str(), prompt.size(), toks.data(), toks.size(), true, true);
 
-    const int n_ctx = 2048;
+    const int n_ctx = 4096;
     if (nt > n_ctx - 128) return env->NewStringUTF("\n\n[A conversa ficou longa demais. Comece uma nova conversa.]");
 
     llama_context_params cp = llama_context_default_params();
@@ -97,7 +97,7 @@ Java_com_playerzin_kairo_Native_gerar(JNIEnv* env, jobject, jobjectArray roles, 
 
     std::string pending;
     int gen = 0;
-    while (ok && !g_stop && gen < 768 && (nt + gen) < n_ctx - 1) {
+    while (ok && !g_stop && gen < 2048 && (nt + gen) < n_ctx - 1) {
         llama_token tok = llama_sampler_sample(smpl, ctx, -1);
         if (llama_vocab_is_eog(vocab, tok)) break;
         char piece[256];
