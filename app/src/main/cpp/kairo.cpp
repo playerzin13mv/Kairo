@@ -30,7 +30,6 @@ Java_com_playerzin_kairo_Native_carregar(JNIEnv* env, jobject, jstring path) {
     llama_model_params mp = llama_model_default_params();
     g_model = llama_model_load_from_file(p, mp);
     env->ReleaseStringUTFChars(path, p);
-    if (g_model) kairo_warmup(g_model);
     return g_model != nullptr;
 }
 

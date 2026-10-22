@@ -34,8 +34,11 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
     var status by mutableStateOf("")
     var gerando by mutableStateOf(false)
     var erro by mutableStateOf("")
+    var precisaAcordar by mutableStateOf(false)
+    var diag by mutableStateOf("")
 
     init {
+        diag = Diag.relatorio(app)
         carregarConversas()
         novaConversa()
         File(app.filesDir, "model.gguf").delete()
@@ -134,11 +137,11 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun carregarModelo() {
-        if (!arquivoModelo.exists() || carregandoModelo) return
+    fun carregarModelo(manual: Boolean = false) {
+        if (!arquivoModelo.exists() || carregandoModelo) return; if (!manual && Diag.marcaExiste(app)) { precisaAcordar = true; erro = "Da última vez o app fechou ao acordar a Kairo."; return }; precisaAcordar = false
         carregandoModelo = true
         viewModelScope.launch(Dispatchers.IO) {
-            val ok = Native.carregar(arquivoModelo.absolutePath)
+            Diag.marcar(app, true); val ok = Native.carregar(arquivoModelo.absolutePath); Diag.marcar(app, false)
             modeloPronto = ok
             carregandoModelo = false
             if (!ok) erro = "Não consegui carregar o modelo."

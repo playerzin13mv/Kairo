@@ -9,7 +9,7 @@ android {
         applicationId = "com.playerzin.kairo"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
+        versionCode = 4
         versionName = "0.2"
         ndk { abiFilters += "arm64-v8a" }
     }

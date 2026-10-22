@@ -217,6 +217,7 @@ fun Principal(vm: AppVM) {
                         }
                     }
                     Text("Olá, ${vm.nome}", color = Txt, fontWeight = FontWeight.Bold)
+                    Text("Versão 0.4 · cérebro 0.5B", color = Dim, fontSize = 12.sp)
                     TextButton(onClick = { vm.sair() }) { Text("Sair da conta", color = Dim) }
                 }
             }
@@ -241,6 +242,7 @@ fun Chat(vm: AppVM, abrirMenu: () -> Unit) {
             Spacer(Modifier.weight(1f))
             Text("＋", fontSize = 26.sp, color = Mint, modifier = Modifier.clip(CircleShape).clickable { vm.novaConversa() }.padding(12.dp))
         }
+        if (vm.diag.isNotEmpty()) DiagCard(vm)
         if (!vm.modeloPronto) ModeloCard(vm)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (msgs.isNullOrEmpty()) Hero(vm)
@@ -320,6 +322,10 @@ fun ModeloCard(vm: AppVM) {
             Text("${vm.status}… ${(vm.progresso * 100).toInt()}%", color = Txt)
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(progress = { vm.progresso }, modifier = Modifier.fillMaxWidth(), color = Mint, trackColor = Bg)
+        } else if (vm.precisaAcordar) {
+            Text("Da última vez o app fechou ao acordar a Kairo. Toque para tentar de novo.", color = Txt)
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = { vm.carregarModelo(true) }, shape = RoundedCornerShape(14.dp)) { Text("Acordar a Kairo") }
         } else if (vm.carregandoModelo) {
             Text("Acordando a Kairo… (na primeira vez demora um pouquinho)", color = Txt)
         } else {
@@ -327,6 +333,19 @@ fun ModeloCard(vm: AppVM) {
             Spacer(Modifier.height(10.dp))
             Button(onClick = { vm.baixarModelo() }, shape = RoundedCornerShape(14.dp)) { Text("Baixar / continuar") }
             if (vm.erro.isNotEmpty()) Text(vm.erro, color = Err, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+@Composable
+fun DiagCard(vm: AppVM) {
+    val clip = LocalClipboardManager.current
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(16.dp)).background(Surf).padding(14.dp)) {
+        Text("Relatório do último fechamento", color = Err, fontWeight = FontWeight.Bold)
+        SelectionContainer { Text(vm.diag, color = Txt, fontSize = 13.sp) }
+        Row {
+            Text("Copiar", color = Mint, modifier = Modifier.clickable { clip.setText(AnnotatedString(vm.diag)) }.padding(8.dp))
+            Text("Fechar", color = Dim, modifier = Modifier.clickable { vm.diag = "" }.padding(8.dp))
         }
     }
 }
